@@ -14,6 +14,8 @@
 #include "mp3_decoder/mp3_decoder.h"
 #include "opus_decoder/opus_decoder.h"
 #include "vorbis_decoder/vorbis_decoder.h"
+#include "FS.h"
+#include "SD_MMC.h"
 
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 AudioBuffer::AudioBuffer(size_t maxBlockSize) {
@@ -6237,6 +6239,9 @@ uint32_t Audio::getHighWatermark(){
     return highWaterMark; // dwords
 }
 
+// TLV320AIC3212 Specific Code
+const uint8_t HPVSS_SENSE_REGISTER = 0x2E; // Register address for HPVSS_SENSE
+const uint8_t HPVSS_SENSE_MASK = 0x80; // Mask value for HPVSS_SENSE
 
 bool Audio::beginTLV320AIC3212(uint8_t i2cAddress) {
     Wire.begin();
@@ -6249,6 +6254,26 @@ bool Audio::beginTLV320AIC3212(uint8_t i2cAddress) {
     writeTLV320AIC3212(0x04, 0x03); // Set sample rate to 48kHz
     // More configuration settings...
     return true;
+}
+
+void Audio::checkHeadphoneConnection() {
+    uint8_t senseValue = readTLV320AIC3212(HPVSS_SENSE_REGISTER); // Read the HPVSS_SENSE register
+    bool isHeadphoneConnected = (senseValue & HPVSS_SENSE_MASK) != 0; // Check if headphones are connected
+
+    if (isHeadphoneConnected != headphoneConnected) {
+        headphoneConnected = isHeadphoneConnected;
+        handleHeadphoneConnection(); // Handle the connection change
+    }
+}
+
+void Audio::handleHeadphoneConnection() {
+    if (headphoneConnected) {
+        setTLV320AIC3212Output(HEADPHONE_OUTPUT); // Switch to headphone output
+        Serial.println("Headphones connected. Switching to headphone output.");
+    } else {
+        setTLV320AIC3212Output(SPEAKER_OUTPUT); // Switch to speaker output
+        Serial.println("Headphones disconnected. Switching to speaker output.");
+    }
 }
 
 void Audio::setTLV320AIC3212Volume(uint8_t volume) {
@@ -6289,4 +6314,41 @@ uint8_t Audio::readTLV320AIC3212(uint8_t reg) {
     Wire.endTransmission();
     Wire.requestFrom(0x18, 1);
     return Wire.read();
+}
+
+void Audio::beginRecording(const char* filename) {
+    if (!SD_MMC.begin()) {
+        Serial.println("Card Mount Failed");
+        return;
+    }
+    uint8_t cardType = SD_MMC.cardType();
+    if (cardType == CARD_NONE) {
+        Serial.println("No SD_MMC card attached");
+        return;
+    }
+    recordingFile = SD_MMC.open(filename, FILE_WRITE);
+    if (!recordingFile) {
+        Serial.println("Failed to open file for writing");
+        return;
+    }
+    isRecording = true;
+}
+
+void Audio::handleRecording() {
+    if (!isRecording) return;
+
+    // Capture audio data from the digital microphone
+    size_t bytesRead = i2s_read(I2S_NUM_0, recordingBuffer, sizeof(recordingBuffer), &bytesRead, portMAX_DELAY);
+    if (bytesRead > 0) {
+        // Write audio data to the WAV file
+        recordingFile.write((uint8_t*)recordingBuffer, bytesRead);
+    }
+}
+
+void Audio::stopRecording() {
+    if (isRecording) {
+        recordingFile.close();
+        isRecording = false;
+        Serial.println("Recording stopped and file closed");
+    }
 }

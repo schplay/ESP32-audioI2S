@@ -167,6 +167,7 @@ public:
     void setTLV320AIC3212Volume(uint8_t volume);
     void setTLV320AIC3212Input(uint8_t input);
     void setTLV320AIC3212Output(uint8_t output);
+    void checkHeadphoneConnection();
     uint8_t getVolume();
     uint8_t maxVolume();
     uint8_t getI2sPort();
@@ -191,6 +192,11 @@ public:
     void setI2SCommFMT_LSB(bool commFMT);
     int getCodec() {return m_codec;}
     const char *getCodecname() {return codecname[m_codec];}
+
+    // Functions for recording audio
+    void beginRecording(const char* filename);
+    void stopRecording();
+    void handleRecording();
 
 private:
 
@@ -262,6 +268,10 @@ private:
 
   void writeTLV320AIC3212(uint8_t reg, uint8_t value);
   uint8_t readTLV320AIC3212(uint8_t reg);
+  void handleHeadphoneConnection(); // New function to handle headphone connection
+  bool headphoneConnected; // Variable to store headphone connection status
+  File recordingFile; // File object for recording
+  bool isRecording; // Recording status
 
   //+++ create a T A S K  for playAudioData(), output via I2S +++
 public:
