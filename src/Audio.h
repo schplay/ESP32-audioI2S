@@ -26,6 +26,7 @@
 #include <atomic>
 #include <codecvt>
 #include <locale>
+#include <Wire.h>
 
 #if ESP_ARDUINO_VERSION_MAJOR >= 3
 #include <NetworkClient.h>
@@ -161,6 +162,11 @@ public:
     void setBalance(int8_t bal = 0);
     void setVolumeSteps(uint8_t steps);
     void setVolume(uint8_t vol, uint8_t curve = 0);
+    // Add functions to initialize and control the TLV320AIC3212
+    bool beginTLV320AIC3212(uint8_t i2cAddress = 0x18);
+    void setTLV320AIC3212Volume(uint8_t volume);
+    void setTLV320AIC3212Input(uint8_t input);
+    void setTLV320AIC3212Output(uint8_t output);
     uint8_t getVolume();
     uint8_t maxVolume();
     uint8_t getI2sPort();
@@ -253,6 +259,9 @@ private:
   void            IIR_calculateCoefficients(int8_t G1, int8_t G2, int8_t G3);
   bool            ts_parsePacket(uint8_t* packet, uint8_t* packetStart, uint8_t* packetLength);
   uint32_t        find_m4a_atom(uint32_t fileSize, const char* atomType, uint32_t depth = 0);
+
+  void writeTLV320AIC3212(uint8_t reg, uint8_t value);
+  uint8_t readTLV320AIC3212(uint8_t reg);
 
   //+++ create a T A S K  for playAudioData(), output via I2S +++
 public:

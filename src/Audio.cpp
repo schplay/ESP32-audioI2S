@@ -6236,3 +6236,57 @@ uint32_t Audio::getHighWatermark(){
     UBaseType_t highWaterMark = uxTaskGetStackHighWaterMark(m_audioTaskHandle);
     return highWaterMark; // dwords
 }
+
+
+bool Audio::beginTLV320AIC3212(uint8_t i2cAddress) {
+    Wire.begin();
+    // Reset the TLV320AIC3212
+    writeTLV320AIC3212(0x00, 0x01); // Reset command
+    delay(10);
+    // Configure the TLV320AIC3212 with necessary settings
+    // Example: Set the sample rate, input, output, etc.
+    writeTLV320AIC3212(0x1B, 0x00); // Power up
+    writeTLV320AIC3212(0x04, 0x03); // Set sample rate to 48kHz
+    // More configuration settings...
+    return true;
+}
+
+void Audio::setTLV320AIC3212Volume(uint8_t volume) {
+    if (volume > 100) volume = 100;
+    // Convert volume to appropriate register value
+    uint8_t regValue = map(volume, 0, 100, 0x30, 0x00);
+    writeTLV320AIC3212(0x41, regValue); // Set volume
+}
+
+void Audio::setTLV320AIC3212Input(uint8_t input) {
+    // Select appropriate input
+    switch (input) {
+        case 1: writeTLV320AIC3212(0x3E, 0x00); break; // MIC
+        case 2: writeTLV320AIC3212(0x3E, 0x10); break; // Line In
+        // Other inputs...
+    }
+}
+
+void Audio::setTLV320AIC3212Output(uint8_t output) {
+    // Select appropriate output
+    switch (output) {
+        case 1: writeTLV320AIC3212(0x3F, 0x00); break; // Speaker
+        case 2: writeTLV320AIC3212(0x3F, 0x10); break; // Headphones
+        // Other outputs...
+    }
+}
+
+void Audio::writeTLV320AIC3212(uint8_t reg, uint8_t value) {
+    Wire.beginTransmission(0x18); // Default I2C address
+    Wire.write(reg);
+    Wire.write(value);
+    Wire.endTransmission();
+}
+
+uint8_t Audio::readTLV320AIC3212(uint8_t reg) {
+    Wire.beginTransmission(0x18); // Default I2C address
+    Wire.write(reg);
+    Wire.endTransmission();
+    Wire.requestFrom(0x18, 1);
+    return Wire.read();
+}
